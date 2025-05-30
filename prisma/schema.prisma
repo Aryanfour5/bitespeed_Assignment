@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Contact {
+  id             Int            @id @default(autoincrement())
+  email          String?        
+  phoneNumber    String?        
+  linkedId       Int?           // FK to Contact.id (nullable)
+  linkPrecedence LinkPrecedence
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  deletedAt      DateTime? 
+
+  // Self-referential relation - both sides needed
+  linkedContact     Contact?   @relation("ContactLink", fields: [linkedId], references: [id])
+  secondaryContacts Contact[]  @relation("ContactLink")
+
+  @@index([linkedId])
+  @@index([email])
+  @@index([phoneNumber])
+}
+
+enum LinkPrecedence {
+  primary
+  secondary
+}
