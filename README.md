@@ -1,4 +1,3 @@
-Here's a well-structured, professional, and complete **README.md** tailored specifically for your BiteSpeed Backend Challenge project:
 
 ---
 
@@ -164,9 +163,9 @@ You can explore the full API documentation via Swagger UI:
 ## 👨‍💻 Author
 
 **Aryan Bachute**
-Full Stack Developer | CloudSim Enthusiast | IEEE Treasurer
+Full Stack Developer  | IEEE Treasurer
 [LinkedIn](https://linkedin.com/in/aryanbachute) | [GitHub](https://github.com/aryanbachute)
 
 ---
 
-Let me know if you want this in Markdown format or want badges, license section, or a GIF demo!
+
