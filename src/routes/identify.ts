@@ -54,7 +54,7 @@ const router = express.Router();
  *                       example: [12, 17]
  */
 
-router.post('/identify', async (req: Request, res: Response): Promise<void> => {
+router.post('/', async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, phoneNumber } = req.body;
 
@@ -101,7 +101,7 @@ router.post('/identify', async (req: Request, res: Response): Promise<void> => {
  *                   $ref: '#/components/schemas/Contact'
  */
 
-router.delete('/contacts/:id', async (req: Request, res: Response): Promise<void> => {
+router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const updatedContact = await softDeleteContact(id);
@@ -141,7 +141,7 @@ router.delete('/contacts/:id', async (req: Request, res: Response): Promise<void
  *                   $ref: '#/components/schemas/Contact'
  */
 
-router.patch('/contacts/restore/:id', async (req: Request, res: Response): Promise<void> => {
+router.patch('/restore/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const restoredContact = await restoreContact(id);
