@@ -6,10 +6,7 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-enum LinkPrecedence {
-  primary
-  secondary
-}
+
 
 model Contact {
   id             Int            @id @default(autoincrement())
