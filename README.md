@@ -3,7 +3,7 @@
 
 # 🧠 BiteSpeed Identity Resolution API
 
-This is a backend service built for the [BiteSpeed Identity Resolution Challenge](https://bitespeed.in). The API helps unify user identity by linking contacts with the same email or phone number across multiple records.
+This is a backend service built for the [BiteSpeed Identity Resolution Challenge]. The API helps unify user identity by linking contacts with the same email or phone number across multiple records.
 
 ### 🚀 Hosted API:
 
