@@ -1,8 +1,7 @@
 import { PrismaClient, Prisma } from '@prisma/client';
+import { ValidationError } from '../utils/error';
 
 const prisma = new PrismaClient();
-
-// Use Prisma-generated types
 type Contact = Prisma.ContactGetPayload<{}>;
 type LinkPrecedence = import('@prisma/client').LinkPrecedence;
 type TransactionClient = Parameters<Parameters<PrismaClient['$transaction']>[0]>[0];
@@ -14,37 +13,43 @@ interface IdentifyResult {
   secondaryContactIds: number[];
 }
 
+// Validation Functions
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function isValidPhoneNumber(phone: string): boolean {
+  return /^[6-9]\d{9}$/.test(phone);  // Indian 10-digit mobile numbers
+}
+
 export async function identifyContact(
   email?: string,
   phoneNumber?: string
 ): Promise<IdentifyResult> {
-  // Validate input - at least one of email or phoneNumber must be provided
+  // Validate input
   if (!email && !phoneNumber) {
-    throw new Error('At least one of email or phoneNumber must be provided');
+    throw new ValidationError('At least one of email or phoneNumber must be provided');
+  }
+  if (email && !isValidEmail(email)) {
+    throw new ValidationError(`Invalid email format: ${email}`);
+  }
+  if (phoneNumber && !isValidPhoneNumber(phoneNumber)) {
+    throw new ValidationError(`Invalid phone number format: ${phoneNumber}`);
   }
 
   return await prisma.$transaction(async (tx) => {
-    // 1. Find all contacts matching email or phoneNumber (excluding deleted)
     const whereConditions = [];
     if (email) whereConditions.push({ email });
     if (phoneNumber) whereConditions.push({ phoneNumber });
 
     const initialContacts = await tx.contact.findMany({
-      where: {
-        deletedAt: null,
-        OR: whereConditions
-      },
-      orderBy: { createdAt: 'asc' }
+      where: { deletedAt: null, OR: whereConditions },
+      orderBy: { createdAt: 'asc' },
     });
 
     if (initialContacts.length === 0) {
-      // No existing contacts, create new primary contact
       const newContact = await tx.contact.create({
-        data: {
-          email,
-          phoneNumber,
-          linkPrecedence: 'primary' as LinkPrecedence,
-        },
+        data: { email, phoneNumber, linkPrecedence: 'primary' as LinkPrecedence },
       });
 
       return {
@@ -55,10 +60,8 @@ export async function identifyContact(
       };
     }
 
-    // 2. Find all contacts in the same contact groups
     const allGroupContacts = await findAllRelatedContacts(tx, initialContacts);
 
-    // 3. Find all primary contacts and determine the oldest one
     const primaryContacts = allGroupContacts
       .filter(c => c.linkPrecedence === 'primary')
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
@@ -68,8 +71,6 @@ export async function identifyContact(
     }
 
     const oldestPrimary = primaryContacts[0];
-
-    // 4. Collect existing emails and phone numbers
     const existingEmails = new Set<string>();
     const existingPhoneNumbers = new Set<string>();
     const currentSecondaryIds: number[] = [];
@@ -77,15 +78,12 @@ export async function identifyContact(
     allGroupContacts.forEach(contact => {
       if (contact.email) existingEmails.add(contact.email);
       if (contact.phoneNumber) existingPhoneNumbers.add(contact.phoneNumber);
-      if (contact.linkPrecedence === 'secondary') {
-        currentSecondaryIds.push(contact.id);
-      }
+      if (contact.linkPrecedence === 'secondary') currentSecondaryIds.push(contact.id);
     });
 
-    // 5. Check if we need to create a new secondary contact
     const emailIsNew = email && !existingEmails.has(email);
     const phoneIsNew = phoneNumber && !existingPhoneNumbers.has(phoneNumber);
-    
+
     if (emailIsNew || phoneIsNew) {
       const newSecondaryContact = await tx.contact.create({
         data: {
@@ -95,16 +93,13 @@ export async function identifyContact(
           linkPrecedence: 'secondary' as LinkPrecedence,
         },
       });
-      
       currentSecondaryIds.push(newSecondaryContact.id);
       if (email) existingEmails.add(email);
       if (phoneNumber) existingPhoneNumbers.add(phoneNumber);
     }
 
-    // 6. Convert additional primary contacts to secondary
     if (primaryContacts.length > 1) {
       const contactsToConvert = primaryContacts.slice(1);
-      
       for (const contact of contactsToConvert) {
         await tx.contact.update({
           where: { id: contact.id },
@@ -116,9 +111,8 @@ export async function identifyContact(
         currentSecondaryIds.push(contact.id);
       }
 
-      // Also need to update any contacts that were linked to the converted primaries
-      const contactsLinkedToConverted = allGroupContacts.filter(c => 
-        c.linkPrecedence === 'secondary' && 
+      const contactsLinkedToConverted = allGroupContacts.filter(c =>
+        c.linkPrecedence === 'secondary' &&
         contactsToConvert.some(converted => converted.id === c.linkedId)
       );
 
@@ -139,53 +133,34 @@ export async function identifyContact(
   });
 }
 
-/**
- * Recursively finds all contacts related to the initial set of contacts
- */
 async function findAllRelatedContacts(
-  tx: TransactionClient, 
+  tx: TransactionClient,
   initialContacts: Contact[]
 ): Promise<Contact[]> {
   const visitedIds = new Set<number>();
   const allContacts: Contact[] = [];
-
-  // Queue for BFS traversal
   const queue = [...initialContacts];
 
   while (queue.length > 0) {
     const current = queue.shift()!;
-    
-    if (visitedIds.has(current.id)) {
-      continue;
-    }
-    
+    if (visitedIds.has(current.id)) continue;
+
     visitedIds.add(current.id);
     allContacts.push(current);
 
-    // Find contacts linked to this one (if this is primary)
     const linkedContacts = await tx.contact.findMany({
-      where: {
-        deletedAt: null,
-        linkedId: current.id
-      }
+      where: { deletedAt: null, linkedId: current.id }
     });
 
-    // Find the contact this one is linked to (if this is secondary)
     let parentContact: Contact | null = null;
     if (current.linkedId && !visitedIds.has(current.linkedId)) {
       parentContact = await tx.contact.findUnique({
-        where: {
-          id: current.linkedId,
-          deletedAt: null
-        }
+        where: { id: current.linkedId, deletedAt: null }
       });
     }
 
-    // Add newly found contacts to queue
     for (const contact of linkedContacts) {
-      if (!visitedIds.has(contact.id)) {
-        queue.push(contact);
-      }
+      if (!visitedIds.has(contact.id)) queue.push(contact);
     }
 
     if (parentContact && !visitedIds.has(parentContact.id)) {
