@@ -164,7 +164,7 @@ You can explore the full API documentation via Swagger UI:
 
 **Aryan Bachute**
 Full Stack Developer  | IEEE Treasurer
-[LinkedIn](https://linkedin.com/in/aryanbachute) | [GitHub](https://github.com/aryanbachute)
+
 
 ---
 
