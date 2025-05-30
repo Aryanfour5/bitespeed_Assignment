@@ -1,6 +1,11 @@
-import { PrismaClient, Contact, LinkPrecedence } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
+
+// Use Prisma-generated types
+type Contact = Prisma.ContactGetPayload<{}>;
+type LinkPrecedence = import('@prisma/client').LinkPrecedence;
+type TransactionClient = Parameters<Parameters<PrismaClient['$transaction']>[0]>[0];
 
 interface IdentifyResult {
   primaryContactId: number;
@@ -38,7 +43,7 @@ export async function identifyContact(
         data: {
           email,
           phoneNumber,
-          linkPrecedence: LinkPrecedence.primary,
+          linkPrecedence: 'primary' as LinkPrecedence,
         },
       });
 
@@ -55,7 +60,7 @@ export async function identifyContact(
 
     // 3. Find all primary contacts and determine the oldest one
     const primaryContacts = allGroupContacts
-      .filter(c => c.linkPrecedence === LinkPrecedence.primary)
+      .filter(c => c.linkPrecedence === 'primary')
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
     if (primaryContacts.length === 0) {
@@ -72,7 +77,7 @@ export async function identifyContact(
     allGroupContacts.forEach(contact => {
       if (contact.email) existingEmails.add(contact.email);
       if (contact.phoneNumber) existingPhoneNumbers.add(contact.phoneNumber);
-      if (contact.linkPrecedence === LinkPrecedence.secondary) {
+      if (contact.linkPrecedence === 'secondary') {
         currentSecondaryIds.push(contact.id);
       }
     });
@@ -87,7 +92,7 @@ export async function identifyContact(
           email,
           phoneNumber,
           linkedId: oldestPrimary.id,
-          linkPrecedence: LinkPrecedence.secondary,
+          linkPrecedence: 'secondary' as LinkPrecedence,
         },
       });
       
@@ -104,7 +109,7 @@ export async function identifyContact(
         await tx.contact.update({
           where: { id: contact.id },
           data: {
-            linkPrecedence: LinkPrecedence.secondary,
+            linkPrecedence: 'secondary' as LinkPrecedence,
             linkedId: oldestPrimary.id,
           },
         });
@@ -113,7 +118,7 @@ export async function identifyContact(
 
       // Also need to update any contacts that were linked to the converted primaries
       const contactsLinkedToConverted = allGroupContacts.filter(c => 
-        c.linkPrecedence === LinkPrecedence.secondary && 
+        c.linkPrecedence === 'secondary' && 
         contactsToConvert.some(converted => converted.id === c.linkedId)
       );
 
@@ -138,7 +143,7 @@ export async function identifyContact(
  * Recursively finds all contacts related to the initial set of contacts
  */
 async function findAllRelatedContacts(
-  tx: any, 
+  tx: TransactionClient, 
   initialContacts: Contact[]
 ): Promise<Contact[]> {
   const visitedIds = new Set<number>();
