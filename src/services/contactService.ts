@@ -18,9 +18,9 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-const isValidPhoneNumber = (phone: string): boolean => {
-  return /^\d{10}$/.test(phone);
-};
+function isValidPhoneNumber(phone: string): boolean {
+  return /^\d{10}$/.test(phone);  // Any 10-digit numbers
+}
 
 
 export async function identifyContact(
