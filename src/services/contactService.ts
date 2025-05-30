@@ -126,8 +126,8 @@ export async function identifyContact(
 
     return {
       primaryContactId: oldestPrimary.id,
-      emails: Array.from(existingEmails).sort(),
-      phoneNumbers: Array.from(existingPhoneNumbers).sort(),
+      emails: Array.from(existingEmails),
+      phoneNumbers: Array.from(existingPhoneNumbers),
       secondaryContactIds: currentSecondaryIds.sort((a, b) => a - b),
     };
   });
